@@ -25,8 +25,7 @@ The common shortcut is to put every server on a public IP and rely on passwords.
 
 ## Architecture
 
-<img width="859" height="620" alt="architecture (2)" src="https://github.com/user-attachments/assets/02436f7e-e5d2-486a-8030-e9dfca2d6f87" />
-
+<img width="1042" height="904" alt="architecture (4)" src="https://github.com/user-attachments/assets/24174892-2522-466d-a622-21bf915cb642" />
 
  
 - The internet can reach only `vm-web-01` (HTTP 80, and SSH 22 from my IP).
