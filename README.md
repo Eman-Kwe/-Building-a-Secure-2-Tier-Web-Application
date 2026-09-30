@@ -106,7 +106,7 @@ Region for everything: East US.
  
 Azure's default rules allow all traffic inside a VNet, so this works before any custom rules exist. This guide shows how to connect to an Azure Linux VM over SSH using the private key (`.pem` file) downloaded when the VM was created. The main steps l used WSL (Ubuntu) on Windows. Alternatives for macOS, Linux, and Windows PowerShell are at the end.
  
-## Option A: WSL (Ubuntu on Windows)
+### Option A: WSL (Ubuntu on Windows)
  
 ### 1. Find your Windows username
  
@@ -154,7 +154,7 @@ ssh -i ~/.ssh/your-key.pem azureuser@<public-ip>
 - Use the admin username you set at creation if it isn't `azureuser`.
 - On the first connection, SSH asks you to confirm the host fingerprint. Type `yes`.
 - The prompt changes to `azureuser@<vm-name>:~$`, which means you're inside the VM.
-## Option B: macOS or Linux terminal
+### Option B: macOS or Linux terminal
  
 No copy step is needed. Lock down the key where it is and connect:
  
@@ -163,7 +163,7 @@ chmod 400 ~/Downloads/your-key.pem
 ssh -i ~/Downloads/your-key.pem azureuser@<public-ip>
 ```
  
-## Option C: Windows PowerShell (no WSL)
+### Option C: Windows PowerShell (no WSL)
  
 Windows has OpenSSH built in, but it also rejects keys with open permissions. From the folder holding the key:
  
