@@ -63,8 +63,8 @@ Region for everything: East US.
 4. Delete the `default` subnet. Click **+ Add a subnet** and create `snet-web` (starting address `10.0.1.0`, size `/24`), then `snet-db` (starting address `10.0.2.0`, size `/24`). Leave **Enable private subnet** checked on both.
 5. Click **Review + create**, then **Create**.
 
-![VNet subnets](docs/screenshots/01-vnet-subnets.png)
- 
+<img width="1511" height="693" alt="preview (17)" src="https://github.com/user-attachments/assets/fc02aa08-3bec-4d51-9295-f98b41d37a36" />
+
 ### Part 2: Deploy the web server
  
 1. **Virtual machines** → **Create** → **Azure virtual machine**.
