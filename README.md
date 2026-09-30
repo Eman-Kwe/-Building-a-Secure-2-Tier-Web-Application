@@ -63,7 +63,8 @@ Region for everything: East US.
 4. Delete the `default` subnet. Click **+ Add a subnet** and create `snet-web` (starting address `10.0.1.0`, size `/24`), then `snet-db` (starting address `10.0.2.0`, size `/24`). Leave **Enable private subnet** checked on both.
 5. Click **Review + create**, then **Create**.
 
-<img width="1511" height="693" alt="preview (17)" src="https://github.com/user-attachments/assets/fc02aa08-3bec-4d51-9295-f98b41d37a36" />
+<img width="618" height="439" alt="Screenshot 2026-09-30 072951" src="https://github.com/user-attachments/assets/98400495-8c13-4f34-a4f1-641938fc4273" />
+
 
 ### Part 2: Deploy the web server
  
@@ -80,9 +81,13 @@ Region for everything: East US.
    - **Action:** Allow
    - **Priority:** 300
    - **Name:** `Allow-SSH-MyIP`
-![Web VM overview](docs/screenshots/02-web-vm-overview.png)
- 
-![Web VM NSG with SSH limited to one source IP](docs/screenshots/03-web-nsg-ssh-restricted.png)
+
+<img width="574" height="434" alt="Screenshot 2026-09-30 075205" src="https://github.com/user-attachments/assets/6039f34a-d05d-4e84-bf9d-cb4afa90eefc" />
+
+
+<img width="949" height="429" alt="Screenshot 2026-09-30 080419" src="https://github.com/user-attachments/assets/3834f447-2e57-4b64-8dbe-79629b13105a" />
+
+
  
 ### Part 3: Deploy the database server
  
@@ -93,42 +98,84 @@ Region for everything: East US.
 5. Public inbound ports: choose **None**. I allowed SSH here at first, which made the wizard create an SSH rule open to any source, and I removed it in Part 5.
 6. Click **Review + create**, then **Create**.
 7. Open `vm-db-02` and note the private IP. Mine was `10.0.2.4`.
-![Database VM with no public IP](docs/screenshots/05-db-vm-no-public-ip.png)
- 
+
+
+<img width="946" height="440" alt="Screenshot 2026-09-30 080305" src="https://github.com/user-attachments/assets/65a9d018-a297-4041-a474-7383022bea4c" />
+
 ### Part 4: Test connectivity between tiers
  
-Azure's default rules allow all traffic inside a VNet, so this works before any custom rules exist.
+Azure's default rules allow all traffic inside a VNet, so this works before any custom rules exist. This guide shows how to connect to an Azure Linux VM over SSH using the private key (`.pem` file) downloaded when the VM was created. The main steps l used WSL (Ubuntu) on Windows. Alternatives for macOS, Linux, and Windows PowerShell are at the end.
  
-1. Copy the keys into WSL and lock down their permissions. Windows folders cannot hold a key with strict permissions:
+## Option A: WSL (Ubuntu on Windows)
+ 
+### 1. Find your Windows username
+ 
+```bash
+ls /mnt/c/Users
+```
+ 
+Ignore the system folders (`Public`, `Default`, `All Users`, and so on). The remaining folder is your Windows username.
+ 
+### 2. Confirm the key is in Downloads
+ 
+```bash
+ls /mnt/c/Users/<windows-username>/Downloads | grep -i pem
+```
+ 
+You should see your key file, for example `your-key.pem`.
+ 
+### 3. Copy the key into WSL
+ 
 ```bash
 mkdir -p ~/.ssh
-cp /mnt/c/Users/<windows-user>/Downloads/your-web-key.pem ~/.ssh/
-cp /mnt/c/Users/<windows-user>/Downloads/your-db-key.pem ~/.ssh/
-chmod 400 ~/.ssh/your-web-key.pem ~/.ssh/your-db-key.pem
+cp /mnt/c/Users/<windows-username>/Downloads/your-key.pem ~/.ssh/
 ```
  
-2. Load both keys into the SSH agent:
+Copy the key instead of using it from `/mnt/c`. WSL treats files on the Windows drive as readable by everyone, and SSH rejects keys with open permissions.
+ 
+### 4. Lock down the key permissions
+ 
 ```bash
-eval "$(ssh-agent -s)"
-ssh-add ~/.ssh/your-web-key.pem
-ssh-add ~/.ssh/your-db-key.pem
+chmod 400 ~/.ssh/your-key.pem
 ```
  
-3. Connect to the web server with agent forwarding, so the private keys never sit on it:
+This makes the key read-only for your user, which is what SSH requires.
+ 
+### 5. Get the VM's public IP
+ 
+In the Azure portal, open the VM and copy the **Public IP address** from the Overview page.
+ 
+### 6. Connect
+ 
 ```bash
-ssh -A -i ~/.ssh/your-web-key.pem azureuser@<web-public-ip>
+ssh -i ~/.ssh/your-key.pem azureuser@<public-ip>
 ```
  
-4. From `vm-web-01`, ping the database server and then jump to it:
+- Use the admin username you set at creation if it isn't `azureuser`.
+- On the first connection, SSH asks you to confirm the host fingerprint. Type `yes`.
+- The prompt changes to `azureuser@<vm-name>:~$`, which means you're inside the VM.
+## Option B: macOS or Linux terminal
+ 
+No copy step is needed. Lock down the key where it is and connect:
+ 
 ```bash
-ping -c 4 10.0.2.4
-ssh azureuser@10.0.2.4
-hostname
+chmod 400 ~/Downloads/your-key.pem
+ssh -i ~/Downloads/your-key.pem azureuser@<public-ip>
 ```
  
-![Ping from the web VM to the database VM](docs/screenshots/06-ping-web-to-db.png)
+## Option C: Windows PowerShell (no WSL)
  
-![SSH jump to the database VM](docs/screenshots/07-ssh-jump-to-db.png)
+Windows has OpenSSH built in, but it also rejects keys with open permissions. From the folder holding the key:
+ 
+```powershell
+icacls .\your-key.pem /inheritance:r
+icacls .\your-key.pem /grant:r "$($env:USERNAME):(R)"
+ssh -i .\your-key.pem azureuser@<public-ip>
+```
+
+<img width="629" height="326" alt="Screenshot 2026-09-30 083322" src="https://github.com/user-attachments/assets/abd466aa-9b68-462b-bfd9-58d7c8ded5d4" />
+
+<img width="433" height="266" alt="Screenshot 2026-09-30 081937" src="https://github.com/user-attachments/assets/4df48e43-7088-4f40-b4af-a79eaa089470" />
  
 ### Part 5: Lock down the database server
  
@@ -140,32 +187,9 @@ Right now any subnet in the VNet could reach the database. Open `vm-db-02-nsg` â
 | 100 | `Allow-Web-SSH` | IP addresses `10.0.1.0/24` | SSH, 22 | Allow |
  
 2. **Delete the wide-open rule.** The wizard had created an `SSH` rule at priority 300 with source `Any`. Its low number means Azure checks it before the deny rule, so leaving it would defeat the lockdown.
-3. **Add the deny rule:**
-| Priority | Name | Source | Service / Port | Action |
-|---|---|---|---|---|
-| 4000 | `Deny-VNet-Other` | Service tag `VirtualNetwork` | Custom, any port, any protocol | Deny |
- 
-The deny rule at 4000 is checked before Azure's built-in "allow VNet" rule at 65000, so anything not explicitly allowed is dropped. If you install a database, add an allow rule from `10.0.1.0/24` to its port (3306 or 5432) below priority 4000.
- 
-![Database NSG rules](docs/screenshots/08-db-nsg-rules.png)
- 
-Then test again from `vm-web-01`:
- 
-```bash
-clear
-ping -c 4 -W 2 10.0.2.4
-ssh azureuser@10.0.2.4 hostname
-```
- 
-![Ping blocked, SSH still allowed](docs/screenshots/09-lockdown-ping-fails-ssh-works.png)
- 
-Last, from my own computer (not the web VM):
- 
-```bash
-ssh -o ConnectTimeout=10 -i ~/.ssh/your-db-key.pem azureuser@10.0.2.4
-```
- 
-![Direct SSH from the internet times out](docs/screenshots/10-direct-ssh-fails.png)
+
+<img width="661" height="421" alt="Screenshot 2026-09-30 083902" src="https://github.com/user-attachments/assets/255d3ebd-b11a-435d-8dec-924172eadd3c" />
+
  
 ## Result
  
@@ -180,19 +204,21 @@ ssh -o ConnectTimeout=10 -i ~/.ssh/your-db-key.pem azureuser@10.0.2.4
 | Database VM reaches the internet | No | No (`changelogs.ubuntu.com` was unreachable from it) |
  
 The before/after ping is the clearest evidence. The same ping that got four replies returned 100% loss once the deny rule was in place, while SSH kept working because the allow rule at priority 100 matched first.
- 
+
+
+<img width="956" height="437" alt="Screenshot 2026-09-30 085658" src="https://github.com/user-attachments/assets/92bc177f-6c76-4670-a15a-369df79a99e6" />
+
 ## Troubleshooting
  
 Everything below happened during this build.
  
 | Symptom | Cause | Solution |
 |---|---|---|
-| Red X on the Address space tab: "Address prefix 10.0.0.0/16 overlaps with 10.0.1.0/24, 10.0.2.0/24" | I added the subnet ranges as separate address spaces instead of subnets. Address spaces in one VNet cannot overlap | Deleted the extra address spaces, kept `10.0.0.0/16`, and created the ranges with **+ Add a subnet** |
-| VM size error: "NotAvailableForSubscription" for `Standard_D2s_v3`; B1s, B1ls, B1ms, and B2s were greyed out | My subscription could not use the small B-series sizes in East US | Used **See all sizes** to find a size that was selectable: `Standard_D2als_v7`, about $0.08 per hour |
-| Could not select `snet-web` on the VM's Networking tab. It offered only a new `172.16.0.0/24` subnet | The wizard had reset the network to a new default VNet when I changed settings on Basics | Re-selected `vnet-your-name` in the Virtual network dropdown, and then `snet-web` appeared |
-| `ssh` to the web VM hung with no output; a TCP test to port 22 said "blocked" | The web VM's NSG contained only Azure's three default rules. The SSH rule the wizard should have created was missing, so `DenyAllInBound` dropped my connection | Added `Allow-SSH-MyIP` at priority 300, using the IPv4 address from `curl -4 ifconfig.me` |
-| Ping to `10.0.2.4` succeeded at 0.02 ms after the lockdown | I was still logged into the database VM, so I was pinging it from itself | Ran `hostname` before testing. The prompt must read `azureuser@vm-web-01` when testing the web-to-database path |
-| Extra resource groups in the portal | The wizard created `vm-db-02_group` for the database VM, and an abandoned first attempt left an empty `vm-your-name_group` | Listed all groups before cleanup and deleted all three |
+| Ping from the web VM to the database VM fails | The VMs are in different VNets, the database VM is in the wrong subnet, or an NSG rule blocks ICMP | Confirm both VMs are in the same VNet and the database VM is in its intended subnet (for example `snet-db`). Check that no NSG rule blocks ICMP between the subnets. |
+| Can't SSH into the database VM from your home computer | The database VM has no public IP, so it can't be reached directly from the internet | SSH into the web VM first, then connect to the database VM's private IP from there, or use an SSH config file with `ProxyJump`. |
+| Ping to the database VM works, but SSH from the web VM says `Permission denied (publickey)` | The network is fine. The web VM doesn't have the database VM's private key, so it has nothing to offer | From your own machine, use an SSH config with `ProxyJump` (recommended), or copy the database key to the web VM, use it, and delete it afterward. Also confirm the admin username and that you're using the key the database VM was created with. |
+| `ssh` to the web VM hangs with no output, and a TCP test to port 22 says blocked | The web VM's NSG contains only Azure's default rules and no SSH allow rule, so `DenyAllInBound` drops the connection silently | In the NSG, add an inbound rule allowing TCP port 22 from your own IP (for example `Allow-SSH-MyIP` at priority 300). Get your IPv4 address with `curl -4 ifconfig.me`. A home IP can change, so update the rule if SSH stops working later. |
+| Ping to the database VM succeeds at about 0.02 ms | You're still logged into the database VM and are pinging it from itself. Real VM-to-VM latency is around 0.5 to 5 ms | Run `hostname` before testing. The prompt must read `azureuser@<web-vm-name>` when you test the web-to-database path. Type `exit` to leave the database VM. |
  
 ## Cleanup
  
