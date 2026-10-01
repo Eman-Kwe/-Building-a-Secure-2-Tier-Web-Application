@@ -177,15 +177,14 @@ ssh -i .\your-key.pem azureuser@<public-ip>
 <img width="433" height="266" alt="Screenshot 2026-09-30 081937" src="https://github.com/user-attachments/assets/4df48e43-7088-4f40-b4af-a79eaa089470" />
  
 ### Part 5: Lock down the database server
+Right now any subnet in the VNet could reach the database. Open `vm-db-02-nsg` → **Inbound security rules** and make these changes in this order, so the SSH path is never cut off.
  
-Right now any subnet in the VNet could reach the database. Open `vm-db-02-nsg` → **Inbound security rules** and make three changes, in this order so the SSH path is never cut off.
- 
-1. **Add the allow rule:**
-| Priority | Name | Source | Service / Port | Action |
-|---|---|---|---|---|
-| 100 | `Allow-Web-SSH` | IP addresses `10.0.1.0/24` | SSH, 22 | Allow |
- 
+1. **Narrow the allow rule.** The rule `Allow-Web-Subnet` (priority 100) allows every port and protocol from the web subnet. Edit it: protocol **TCP**, destination port **22**, source `10.0.1.0/24`, action Allow. Left as it was, it lets ping through, and Azure checks it before the deny rule.
 2. **Delete the wide-open rule.** The wizard had created an `SSH` rule at priority 300 with source `Any`. Its low number means Azure checks it before the deny rule, so leaving it would defeat the lockdown.
+3. **Add the deny rule.** Name `Deny-VNet-Other`, priority 4000, source service tag `VirtualNetwork`, any port, any protocol, action Deny. It sits above Azure's built-in "allow VNet" rule at 65000, so anything not explicitly allowed is dropped.
+4. If you also added a separate `Allow-Web-SSH` rule, delete it. Rule 100 now does the same job.
+The final list should show `Allow-Web-Subnet` (100, TCP 22, from `10.0.1.0/24`), `Deny-VNet-Other` (4000), and Azure's three default rules.
+ 
 
 <img width="661" height="421" alt="Screenshot 2026-09-30 083902" src="https://github.com/user-attachments/assets/255d3ebd-b11a-435d-8dec-924172eadd3c" />
 
